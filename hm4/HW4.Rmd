@@ -1,0 +1,480 @@
+---
+title: "HW4_Group5"
+author: "Bhavesh Kilaru"
+date: "9/18/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(mice)
+library(MASS)
+library(forcats)
+library(ggplot2)
+library(EnvStats)
+library(tidyverse)
+library(knitr)
+```
+## loading the data
+```{r}
+housingData <- read.csv("C:/Users/Bhavesh Kilaru/Desktop/IDA/Home works/HW2/housingData.csv", header = T)
+```
+
+## problem 1
+#### a
+#### creating three new variables in housing data
+```{r}
+housingData <- housingData %>%
+  dplyr::mutate(age = YrSold - YearBuilt,
+  ageSinceRemodel = YrSold - YearRemodAdd,
+  ageofGarage = YrSold - GarageYrBlt)
+```
+
+#### b
+#### selecting the numeric columns from housingData data frame
+```{r}
+#getting the numeric columns
+housingNumeric <- select_if(housingData, is.numeric) %>% as_tibble()
+head(housingNumeric)
+```
+
+#### c
+#converting the character columns into factors
+```{r}
+#housingData[sapply(housingData, is.character)] <- lapply(housingData[sapply(housingData, is.character)], as.factor)
+```
+
+#getting the factor columns
+```{r}
+#housingFactor <-  housingData %>%  select_if(is.factor)
+```
+
+#### c
+#### creating a tibble housingFactor that contains all factor variables of housing data
+```{r}
+housingFactor <- housingData %>% transmute(across(where(is.character), as.factor)) %>%as_tibble()
+head(housingFactor)
+```
+
+#### d
+#### using glimse to look at the created tibble
+```{r}
+glimpse(housingFactor)
+```
+```{r}
+glimpse(housingNumeric)
+```
+
+### e
+#### functions to extracting Q1 and Q3 
+```{r}
+Q1<-function(x,na.rm=TRUE) {
+quantile(x,na.rm=na.rm)[2]
+}
+Q3<-function(x,na.rm=TRUE) {
+quantile(x,na.rm=na.rm)[4]
+}
+```
+
+#### f
+#### creating the function myNumericSummary
+```{r}
+myNumericSummary <- function(x){
+c(length(x), n_distinct(x), sum(is.na(x)), mean(x, na.rm=TRUE),
+min(x,na.rm=TRUE), Q1(x,na.rm=TRUE), median(x,na.rm=TRUE), Q3(x,na.rm=TRUE),
+max(x,na.rm=TRUE), sd(x,na.rm=TRUE))
+}
+```
+
+#### g
+#### creating a tibble numericSummary that contains the result of myNumericSummary function
+#### applied on each column of housingNumeric tibble
+```{r}
+numericSummary <- housingNumeric %>% summarise(across(.cols = everything(), ~myNumericSummary(.x)))
+glimpse(numericSummary)
+```
+
+#### h
+#### adding a column stats that names each row of numericSummary
+```{r}
+numericSummary <-cbind( stat=c("n","unique","missing","mean","min","Q1","median","Q3","max","sd"),
+                        numericSummary)
+glimpse(numericSummary)
+```
+#### i
+#### pivoting the data
+```{r}
+numericSummaryFinal <- numericSummary %>%
+  pivot_longer("Id":"ageofGarage", names_to = "variable", values_to = "value") %>%
+  pivot_wider(names_from = stat, values_from = value) %>%
+  mutate(missing_pct = 100*missing/n,
+         unique_pct = 100*unique/n) %>%
+  dplyr::select(variable, n, missing, missing_pct, unique, unique_pct, everything())
+
+numericSummaryFinal
+```
+```{r}
+options(digits=3)
+options(scipen=99)
+numericSummaryFinal %>% kable()
+```
+
+##### j
+##### getting the modes
+```{r}
+getmodes <- function(v,type=1) {
+  tbl <- table(v)
+  m1<-which.max(tbl)
+  if (type==1) {
+    return (names(m1)) #1st mode
+  }
+  else if (type==2) {
+    return (names(which.max(tbl[-m1]))) #2nd mode
+  }
+  else if (type==-1) {
+    return (names(which.min(tbl))) #least common mode
+  }
+  else {
+    stop("Invalid type selected")
+  }
+}
+```
+
+#### getting mode cnts
+```{r}
+getmodesCnt <- function(v,type=1) {
+  tbl <- table(v)
+  m1<-which.max(tbl)
+  if (type==1) {
+    return (max(tbl)) #1st mode freq
+  }
+  else if (type==2) {
+    return (max(tbl[-m1])) #2nd mode freq
+  }
+  else if (type==-1) {
+    return (min(tbl)) #least common freq
+  }
+  else {
+    stop("Invalid type selected")
+  }
+}
+```
+
+##### creating the MyFactorSummary function to summarize factor columns
+```{r}
+myFactorSummary<-function(x){
+  c(length(x), n_distinct(x), sum(is.na(x)), 
+    getmodes(x, type =1), getmodesCnt(x, type =1),
+    getmodes(x, type =2), getmodesCnt(x, type =2),
+    getmodes(x, type =-1), getmodes(x, type =-1))
+}
+```
+
+#### creating a tibble FactorSummary that contains the result of myFactorSummary function
+#### applied on each column of housingFactor tibble
+```{r}
+FactorSummary <- housingFactor %>% summarise(across(.cols = everything(), ~myFactorSummary(.x)))
+glimpse(FactorSummary)
+```
+#### adding a column stats that names each row of FactorSummary
+```{r}
+FactorSummary <-cbind( stat=c("n","unique","missing","1st Mode", "1st Mode Freq", "2nd Mode", 
+                              "2nd Mode Freq", "Least Common Mode", "Least Common Mode Freq"),
+                        FactorSummary)
+glimpse(FactorSummary)
+```
+
+#### pivoting the data
+```{r}
+FactorSummaryFinal <- FactorSummary %>%
+  pivot_longer("MSZoning":"SaleType", names_to = "variable", values_to = "value") %>%
+  pivot_wider(names_from = stat, values_from = value) %>%
+  mutate(missing_pct = 100* as.numeric(missing)/as.numeric(n),
+         unique_pct = 100* as.numeric(unique)/as.numeric(n)) %>%
+  dplyr::select(variable, n, missing, missing_pct, unique, unique_pct, everything())
+
+FactorSummaryFinal
+```
+
+#### converting data to kable
+```{r}
+options(digits=3)
+options(scipen=99)
+FactorSummaryFinal %>% kable()
+```
+
+## 2
+#### a
+#### plotting the histogram of all numeric columns in original data to check the skewness
+```{r}
+par(mar = c(0.75, 0.75, 0.75, 0.75))
+par(mfrow=c(10,4))
+housingNumeric <- select_if(housingData, is.numeric)
+for(i in 1:ncol(housingNumeric)){
+  hist(housingNumeric[, i], main = colnames(housingNumeric)[i], axes = F)
+}
+```
+
+```{r}
+for (i in 1:ncol(housingNumeric)){
+  print(paste(colnames(housingNumeric)[i], skewness(housingNumeric[, i])))
+}
+```
+
+```{r}
+#boxcox(housingNumeric$OpenPorchSF, optimize=T, lambda=c(-3,3))
+```
+
+##### Here I consider columns PoolArea, LotArea and BsmtUnfSFas they are continuous variables
+
+##### Pool Area
+#####taking pre snap of PoolArea attribute
+```{r}
+temp_PoolArea <- housingNumeric$PoolArea
+```
+
+##### box cox of PoolArea Attribute
+##### adding a negligible value to PoolArea since boxcox is infeasible when value is zero
+```{r}
+b <- boxcox(housingNumeric$PoolArea+0.0001, optimize = T, lambda = c(-3, 3))
+#changing the values of PoolArea using boxcox function
+housingNumeric$PoolArea <- (housingNumeric$PoolArea^b$lambda - 1)/b$lambda
+```
+
+##### post snap of PoolArea
+```{r}
+par(mfrow = c(2, 1))
+
+#plotting a pre snap of PoolArea attribute
+hist(temp_PoolArea, xlab = 'PoolArea', main ='Presnap of PoolArea')
+
+#plotting the post snap of PoolArea
+hist(housingNumeric$PoolArea, xlab = 'PoolArea', main ='Post snap of PoolArea')
+```
+since most of the data is concentrated at zero, PoolArea haven't changed even after applying the
+BoxCox function
+
+
+#### Lot AREA
+#####getting pre snap of Lot area
+```{r}
+temp_LotArea <- housingNumeric$LotArea
+```
+##### boxcox of Lot area
+```{r}
+b <- boxcox(housingNumeric$LotArea, optimize = T, lambda = c(-3,3))
+
+#changing the values of LotArea using boxcox function
+housingNumeric$LotArea <- (housingNumeric$LotArea^b$lambda -1)/b$lambda
+```
+##### plotting pre snap and post snap of Lot area
+```{r}
+par(mfrow=c(2, 1))
+
+#plotting the pre snap
+hist(temp_LotArea, xlab = 'Lot Area', main ='Presnap of Lot Area')
+
+#plotting the post snap
+hist(housingNumeric$LotArea, xlab = 'Lot Area', main ='postsnap of Lot Area')
+```
+
+#### BsmtUnfSF
+
+##### taking a pre snap of BsmtUnfSF
+```{r}
+temp_BsmtUnfSF <- housingNumeric$BsmtUnfSF
+```
+
+##### box cox of BsmtUnfSF Attribute
+##### adding a negligible value to BsmtUnfSF since boxcox is infeasible when value is zero
+```{r}
+b <- boxcox(housingNumeric$BsmtUnfSF+0.0001, optimize = T, lambda = c(-3, 3))
+#changing the values of MSsubClass using boxcox function
+housingNumeric$BsmtUnfSF <- (housingNumeric$BsmtUnfSF^b$lambda - 1)/b$lambda
+```
+
+##### post snap of MSSub Class
+```{r}
+par(mfrow = c(2, 1))
+
+#plotting a pre snap of BsmtUnfSF attribute
+hist(temp_BsmtUnfSF, xlab = 'BsmtUnfSF', main ='Presnap of BsmtUnfSF')
+
+#plotting the post snap of BsmtUnfSF
+hist(housingNumeric$BsmtUnfSF, xlab = 'BsmtUnfSF', main ='Post snap of BsmtUnfSF')
+```
+
+##### b
+
+##### mean imputation of missing values in LotFrontage Column
+```{r}
+#creating a temporary variable to store the original housing data
+data_imp_mean <- housingData
+
+#getting pre count
+print(paste("The number of missing values before mean impuatation is ", sum(is.na(data_imp_mean$LotFrontage))))
+
+#getting the position of missing values of LotFrontage attribute
+missing_values <- which(is.na(data_imp_mean$LotFrontage))
+
+#imputing missing values of LotFrontage attribute with mean
+data_imp_mean$LotFrontage[missing_values] <- mean(data_imp_mean$LotFrontage, na.rm = T)
+
+#getting post count
+print(paste("The number of missing values after mean impuatation is ", sum(is.na(data_imp_mean$LotFrontage))))
+```
+
+##### ii
+##### regression with error
+```{r}
+#getting a copy of original housing data
+data_imp_RE <- housingData
+
+#getting pre count
+print(paste("The number of missing values before mean impuatation is ", sum(is.na(data_imp_RE$LotFrontage))))
+```
+```{r}
+#fitting the linear regression model
+fit<-lm(LotFrontage ~ LotArea + SalePrice, data_imp_RE)  
+
+#getting the summary of the model
+f<-summary(fit)
+print (f)  
+```
+```{r}
+# extract the coefficients 
+c<-f[[4]]      
+
+# extract the model standard error
+se<-f[[6]]                    
+```
+
+```{r}
+#getting the position of missing values of LotFrontage attribute
+missing <- which(is.na(data_imp_RE$LotFrontage))
+
+#data_imp_RE[missing,"LotFrontage"]<- (c[1] + c[2]*data_imp_RE[missing,"LotArea"] + c[3] * data_imp_RE[missing,"SalePrice"] )
+
+#predicting missing values using the linear model fitted and adding error to it
+data_imp_RE[missing,"LotFrontage"]<- predict(fit, housingData[missing, c('LotArea', 'SalePrice')]) +  rnorm(length(missing),0,se)
+```
+
+```{r}
+#getting post count
+print(paste("The number of missing values after mean impuatation is ", sum(is.na(data_imp_RE$LotFrontage))))
+```
+
+##### iii
+#####  predictive mean matching
+```{r}
+#getting a copy of original housing data
+temp_HD <- read.csv("C:/Users/Bhavesh Kilaru/Desktop/IDA/Home works/HW2/housingData.csv", header = T)
+
+#getting pre count
+print(paste("The number of missing values before mean impuatation is ", sum(is.na(temp_HD$LotFrontage))))
+
+# Impute missing values using PMM
+imp_single <- mice(temp_HD, m = 1, method = "pmm")
+
+#getting only the complete cases from above 'imp_single' mids class
+data_imp_pmm <- complete(imp_single)
+
+#getting post count
+print(paste("The number of missing values after mean impuatation is ", sum(is.na(data_imp_pmm$LotFrontage))))
+```
+
+##### Histogram of Lot Frontage after imputation using predictive mean matching
+```{r}
+#pre snap of lot frontage
+hist(housingData$LotFrontage,xlab = 'LotFrontage', 
+     main = "pre snap of LotFrontage Column")
+```
+
+```{r}
+#post snap of LotFrontage after after mean imputation
+hist(data_imp_mean$LotFrontage, xlab = "Lot Frontage",
+     main = "Histogram of Lot Frontage after mean imputation")
+```
+
+```{r}
+#post snap of LotFrontage after imputation using regression with error
+hist(data_imp_RE$LotFrontage, xlab = 'Lot Frontage', 
+     main = 'Histogram of Lot Frontage after imputation using regression with error')
+```
+
+```{r}
+#post snap of LotFrontage after imputation using PMM
+hist(data_imp_pmm$LotFrontage, xlab = 'Lot Frontage', 
+     main = 'Histogram of Lot Frontage after imputation using pmm')
+```
+
+##### c
+##### getting the pre count of each factor in attribute Exterior1st 
+#####in descending order
+```{r}
+#summary(housingData$Exterior1st)
+fct_count(housingData$Exterior1st, sort = T)
+```
+
+##### collapsing the columns so that the column Exterior1st have only five factors
+```{r}
+housingData$Exterior1st <- fct_collapse(housingData$Exterior1st, 
+                                          Other = c("BrkFace", "CemntBd", "other", "Plywood"))
+
+#getting the post count for each factor level in descending order
+fct_count(housingData$Exterior1st, sort = T)
+```
+
+#### d
+##### i
+##### calculating average sales price for each neighborhood
+```{r}
+housingData %>% group_by(Neighborhood) %>% 
+  summarise(Mean = mean(SalePrice))
+```
+
+##### ii
+##### making the boxplots of Saleprice for each neighborhood
+```{r}
+ggplot(housingData, aes(x= Neighborhood, y = SalePrice)) +
+  #Adding the boxplot layer
+  geom_boxplot() + 
+  #adding title
+  labs(title = "box plot for each of the neighborhood", xlab = 'Neighborhood') +
+  #setting the title of the plot to middle and alligning the xlabs vertically
+  theme(axis.text.x = element_text(angle = 90), plot.title = element_text(hjust = 0.5))
+```
+
+##### iii
+##### using forcats, ordering the factors levels of neighborhooding based on the decsending order of Median of Saleprice
+```{r}
+housingData$Neighborhood <-fct_reorder(housingData$Neighborhood, 
+                                       housingData$SalePrice, .fun = median, .desc = T)
+```
+
+##### displaying the first five rows based on above transformation
+```{r}
+head(housingData %>% group_by(Neighborhood) %>% 
+  summarise(Median = median(SalePrice)))
+```
+
+##### iv
+#### making boxplot of saleprice for each neighborhood which is sorted on descending order of median
+```{r}
+ggplot(housingData, aes(x= Neighborhood, y = SalePrice)) +
+  #Adding the boxplot layer
+  geom_boxplot() + 
+  #adding title
+  labs(title = "box plot for each of the neighborhood after reordering", xlab = 'Neighborhood') +
+  #setting the title of the plot to middle and alligning the xlabs vertically
+  theme(axis.text.x = element_text(angle = 90), plot.title = element_text(hjust = 0.5))
+```
+
+
+
+
+

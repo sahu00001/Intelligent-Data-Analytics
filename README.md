@@ -50,7 +50,7 @@ This repository covers the complete process of data analysis and modeling, from 
 ## How to Use This Repository
 
 1. **Structured Learning**:
-   - Files are organized sequentially (`home1` to `home8`), guiding you step-by-step from basic preprocessing to advanced modeling.
+   - Files are organized sequentially (`homework1` to `homework8`), guiding you step-by-step from basic preprocessing to advanced modeling.
 2. **Hands-On Practice**:
    - Each file contains real-world examples, code, and datasets.
 3. **Reusable Code**:

@@ -39,11 +39,7 @@ This repository covers the complete process of data analysis and modeling, from 
 ## Key Highlights
 
 - **End-to-End Workflow**:
-  - From preprocessing to model deployment.
-- **Dimensionality Reduction**:
-  - PCA, Autoencoders, and capturing non-linearity in time-series data.
-- **Practical Applications**:
-  - Storm surge prediction, risk scoring, and clustering geospatial data.
+  - From preprocessing to model developement and populating your work in kaggle
 
 ---
 
